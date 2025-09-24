@@ -1,0 +1,107 @@
+# -----------------------------------------------------------------------------
+# Docker Compose para Home Assistant con Nginx Proxy
+#
+# Este archivo despliega Home Assistant, una plataforma de automatización del
+# hogar de código abierto, integrado con jwilder/nginx-proxy para acceso web
+# automático y dispositivos USB para comunicación con hardware IoT.
+#
+# Funcionalidades principales:
+# 1. Automatización del hogar: Control centralizado de dispositivos inteligentes
+# 2. Interfaz Web: Panel de control accesible vía nginx proxy
+# 3. Integración USB: Soporte para Zigbee/Z-Wave mediante dispositivos seriales
+# 4. Proxy automático: jwilder/nginx-proxy detecta y configura acceso web
+# 5. Monitoreo de salud: Healthcheck automático del servicio web
+#
+# Configuración de red:
+# - Conectado a red externa nginx_proxy_net (compartida con jwilder/nginx-proxy)
+# - Puerto 8123 interno (manejado por nginx proxy)
+# - Acceso web: http://hass.home.arpa/
+# - Sin mapeo directo de puertos al host
+# - Conectividad completa con otros contenedores en la misma red (ej: Pi-hole)
+# - Acceso directo al router 192.168.37.1 para integraciones LAN
+#
+# Dispositivos USB:
+# - /dev/ttyUSB0 mapeado a /dev/ttyS0 para comunicación serial
+# - Soporte para controladores Zigbee/Z-Wave USB
+# - Modo privilegiado habilitado para acceso completo a hardware
+#
+# Persistencia de datos:
+# - homeassistant: Volumen Docker named para configuración, base de datos y logs
+# - /etc/localtime: Sincronización de zona horaria con el host
+# - /run/dbus: Acceso al bus de sistema para integración con servicios del host
+#
+# Variables de entorno (.env):
+# - HOSTNAME: Nombre del contenedor (hass)
+# - VIRTUAL_HOST: Dominio para acceso via nginx proxy (hass.home.arpa)
+# - VIRTUAL_PORT: Puerto interno para nginx proxy (8123)
+#
+# Configuración de reverse proxy:
+# - Home Assistant configurado con trusted_proxies para red Docker 172.22.0.0/16
+# - use_x_forwarded_for habilitado para reconocimiento de IP real del cliente
+# - Protección contra acceso no autorizado via proxy
+# - Eliminación de error 400: Bad Request con configuración específica
+#
+# Healthcheck:
+# - Verifica funcionamiento del servicio web cada 30 segundos
+# - Comando: curl -f http://localhost:8123 para validar disponibilidad
+# - Reintentos: 3 antes de marcar como unhealthy
+# - Periodo de inicio: 60 segundos de gracia al arrancar
+#
+# Configuración de logs:
+# - Logging driver: json-file con rotación automática
+# - Límite por archivo: 50MB máximo
+# - Archivos de rotación: 3 archivos (150MB total)
+# - Logs internos accesibles via: docker compose exec homeassistant tail -f /config/home-assistant.log
+#
+# Requisitos previos:
+# - Red nginx_proxy_net debe existir (creada por jwilder/nginx-proxy)
+# - Archivo .env con variables HOSTNAME, VIRTUAL_HOST, VIRTUAL_PORT
+# - Dispositivo /dev/ttyUSB0 presente en el host (opcional, para USB devices)
+# - Registro DNS local: hass.home.arpa → IP del servidor nginx proxy
+# - Home Assistant configurado con trusted_proxies en configuration.yaml
+#
+# Comandos útiles:
+# - docker compose up -d: Iniciar en modo detached
+# - docker compose logs -f homeassistant: Ver logs en tiempo real
+# - docker compose exec homeassistant bash: Acceder al contenedor
+# - docker cp homeassistant:/config/home-assistant.log ./: Copiar logs al host
+# -----------------------------------------------------------------------------
+
+services:
+  hass:
+    #container_name: hass
+    hostname: ${HOSTNAME}
+    image: "homeassistant/home-assistant:latest"
+    volumes:
+      - hass_data:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    privileged: true
+    #ports:
+    #  - "8123:8123"
+    networks:
+      - nginx_proxy_net
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyS0"
+    environment:
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - VIRTUAL_PORT=${VIRTUAL_PORT}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  hass_data:
+
+networks:
+  nginx_proxy_net:
+    external: true
