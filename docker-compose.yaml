@@ -87,6 +87,18 @@ services:
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - VIRTUAL_PORT=${VIRTUAL_PORT}
+    labels:
+      # Habilitar Traefik
+      - "traefik.enable=true"
+      # Router HTTPS
+      - "traefik.http.routers.hass-secure.rule=Host(`hass.home.arpa`)"
+      - "traefik.http.routers.hass-secure.entrypoints=websecure"
+      - "traefik.http.routers.hass-secure.tls=true"
+      - "traefik.http.services.hass.loadbalancer.server.port=8123"
+      # Redirect HTTP to HTTPS
+      - "traefik.http.routers.hass.rule=Host(`hass.home.arpa`)"
+      - "traefik.http.routers.hass.entrypoints=web"
+      - "traefik.http.routers.hass.middlewares=redirect-to-https"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8123"]
       interval: 30s
