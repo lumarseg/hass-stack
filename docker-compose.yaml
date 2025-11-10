@@ -72,6 +72,9 @@ services:
     #container_name: hass
     hostname: ${HOSTNAME}
     image: "homeassistant/home-assistant:latest"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     volumes:
       - hass_data:/config
       - /etc/localtime:/etc/localtime:ro
