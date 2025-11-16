@@ -84,7 +84,7 @@ services:
     #ports:
     #  - "8123:8123"
     networks:
-      - nginx_proxy_net
+      - proxy_net
     devices:
       - "/dev/ttyUSB0:/dev/ttyS0"
     environment:
@@ -98,6 +98,11 @@ services:
       - "traefik.http.routers.hass-secure.entrypoints=websecure"
       - "traefik.http.routers.hass-secure.tls=true"
       - "traefik.http.services.hass.loadbalancer.server.port=8123"
+      # Health check configuration
+      - "traefik.http.services.hass.loadbalancer.healthcheck.path=/"
+      - "traefik.http.services.hass.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.hass.loadbalancer.healthcheck.timeout=10s"
+      - "traefik.http.services.hass.loadbalancer.healthcheck.scheme=http"
       # Redirect HTTP to HTTPS
       - "traefik.http.routers.hass.rule=Host(`hass.home.arpa`)"
       - "traefik.http.routers.hass.entrypoints=web"
@@ -118,5 +123,5 @@ volumes:
   hass_data:
 
 networks:
-  nginx_proxy_net:
+  proxy_net:
     external: true
