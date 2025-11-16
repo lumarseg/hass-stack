@@ -69,7 +69,7 @@
 
 services:
   hass:
-    #container_name: hass
+    container_name: hass
     hostname: ${HOSTNAME}
     image: "homeassistant/home-assistant:latest"
     cap_add:
